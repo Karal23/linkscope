@@ -1,0 +1,17 @@
+.local-state/
+__pycache__/
+.venv/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+*.env
+tokens/
+*.sqlite3
+*.sqlite3-*
+*.pem
+*.key
+/backups/
+/deploy/records/
+/.openai/
+/.claude/

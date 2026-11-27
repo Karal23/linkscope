@@ -1,0 +1,1062 @@
+/* Phone: two pages. The first is the network as a full-screen map; a swipe up turns to the second, with the
+   state, the routes, the last hour and the nodes. Details rise from the bottom over the map. The document itself
+   does not scroll. */
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  overflow: hidden;
+  background: var(--canvas);
+}
+.workspace {
+  height: 100%;
+  max-width: none;
+  padding: 0;
+}
+.topology-panel {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* Top bar: floats over both pages; taps between its controls reach the page under it. Its backdrop fades
+   from the map's colour to the overview's as the page turns. */
+.board-head {
+  position: fixed;
+  z-index: 4;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: calc(56px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  border: 0;
+  background: none;
+  pointer-events: none;
+}
+.board-head::before,
+.board-head::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(var(--canvas) 40%, transparent);
+  transition: opacity 0.45s;
+}
+.board-head::after {
+  background: linear-gradient(var(--panel) 40%, transparent);
+  opacity: 0;
+}
+#topology[data-page='overview'] .board-head::before {
+  opacity: 0;
+}
+#topology[data-page='overview'] .board-head::after {
+  opacity: 1;
+}
+.board-head > * {
+  pointer-events: auto;
+}
+.brand {
+  gap: 8px;
+  margin-right: auto;
+  font-size: 17px;
+}
+.brand img {
+  width: 26px;
+  height: 26px;
+}
+.brand span {
+  display: inline;
+}
+.board-identity,
+.metric-block,
+.board-actions > .theme-switch,
+.board-actions #sign-out,
+.board-clock,
+.map-tools,
+#topology .board-rail,
+#topology .map-stage {
+  display: none !important;
+}
+.board-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+button.phone-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.board-actions .live-control {
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 76%, transparent);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  backdrop-filter: blur(10px);
+  color: var(--sub);
+  font-size: 12.5px;
+}
+.board-actions .live-dot,
+.board-actions #live-label {
+  display: inline-block;
+}
+.board-actions .playback-icon {
+  display: none;
+}
+[data-disconnected] .live-dot {
+  background: var(--amber);
+  box-shadow: none;
+}
+#phone-menu-open {
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sub);
+}
+#phone-menu-open .icon {
+  width: 20px;
+  height: 20px;
+}
+.topology-canvas {
+  display: block;
+  background: none;
+}
+.mobile-routes {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+#empty-map:not([hidden]) {
+  position: fixed;
+  z-index: 2;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ---------- Map style: links, nodes, markers. Restyling the map only needs this section. ---------- */
+/* Routes take four colours in a fixed order, for their dots on the map and their rows on the second page. Each
+   pair stays apart under normal and colour-blind vision, each stands out from the map, and none is close to the
+   green, amber or red that mark status. */
+:root {
+  --route-1: #687dff;
+  --route-2: #3abdff;
+  --route-3: #96a300;
+  --route-4: #ca56c4;
+}
+:root[data-theme='light'] {
+  --route-1: #3534c7;
+  --route-2: #008ec8;
+  --route-3: #828d00;
+  --route-4: #71006e;
+}
+/* A soft light behind the network, and faint dots that fade out towards the edges. The status shows on the button
+   to the overview rather than across the map. */
+.phone-map {
+  --tone: var(--mint);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(120% 62% at 50% 34%, var(--canvas-lift), transparent 76%), var(--canvas);
+}
+.phone-map::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--canvas-dot) 0.9px, transparent 1.3px);
+  background-size: 26px 26px;
+  background-position: center;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 48%, #000 25%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 48%, #000 25%, transparent 100%);
+  pointer-events: none;
+}
+.topology-canvas::before {
+  display: none;
+}
+#topology[data-tone='warn'] #phone-next {
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+  color: var(--amber);
+}
+#topology[data-tone='bad'] #phone-next {
+  box-shadow: inset 0 0 0 1.5px var(--rose);
+  color: var(--rose);
+}
+#topology[data-tone='warn'] .phone-map {
+  --tone: var(--amber);
+}
+#topology[data-tone='bad'] .phone-map {
+  --tone: var(--rose);
+}
+#topology[data-tone='idle'] .phone-map {
+  --tone: var(--neutral);
+}
+.mm-layer {
+  position: absolute;
+  inset: 0;
+}
+.mm-layer > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.phone-map .dim {
+  opacity: 0.14;
+}
+/* Each link is one thin curve with a soft halo; an open detail brightens the links it covers in the route's colour. */
+.tp-glow,
+.tp-link {
+  fill: none;
+  stroke-linecap: round;
+  transition: opacity 0.3s;
+}
+.tp-glow {
+  stroke: color-mix(in srgb, var(--mint) 55%, transparent);
+  stroke-width: 7px;
+  opacity: 0.1;
+}
+:root[data-theme='light'] .tp-glow {
+  opacity: 0.07;
+}
+.tp-link {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.8px;
+}
+/* No reading yet: dotted. Loss, timeouts or no reply: a broken line, with a marker on it saying what is wrong. */
+.tp-link.pending {
+  stroke-dasharray: 0.1 6;
+  stroke-width: 2.4px;
+}
+.tp-link.broken {
+  stroke-dasharray: 7 5;
+  stroke-linecap: butt;
+  stroke-width: 2.4px;
+}
+.tp-link.amber {
+  stroke: var(--amber);
+}
+.tp-link.rose {
+  stroke: var(--rose);
+}
+.tp-link.lit {
+  stroke: var(--route-color, var(--text));
+  stroke-width: 2.8px;
+}
+.tp-glow.lit {
+  stroke: var(--route-color, var(--text));
+  opacity: 0.22;
+}
+.phone-map .tp-glow.dim,
+#topology[data-disconnected] .tp-glow {
+  opacity: 0;
+}
+#topology[data-disconnected] .tp-link {
+  opacity: 0.45;
+}
+/* A wide invisible stroke makes each link easy to tap. */
+.mm-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16px;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+/* A streak of light in each route's colour runs along its links, with a soft glow. Routes five to eight reuse the
+   colours as hollow streaks: a thin line of the background runs down their middle, like their double rings. */
+.tp-flow,
+.tp-flow-glow,
+.tp-flow-core {
+  fill: none;
+  stroke-linecap: round;
+}
+.tp-flow {
+  stroke: var(--route-color);
+  stroke-width: 2.6px;
+}
+.tp-flow.cased {
+  stroke-width: 3.4px;
+}
+.tp-flow-glow {
+  stroke: var(--route-color);
+  stroke-width: 9px;
+  opacity: 0.16;
+}
+.tp-flow-core {
+  stroke: var(--canvas);
+  stroke-width: 1.3px;
+}
+/* Paused or disconnected boards are not live, so nothing runs. */
+:is(#topology[data-disconnected], #topology:has(#live-toggle[aria-pressed='false'])) .mm-train {
+  display: none;
+}
+/* Nodes: the flag in a ring with the name under it. The map sets --node and --name to the largest sizes its most
+   crowded layer allows. A live probe has a soft glow; an offline one a red dashed ring. */
+.tp-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  transform: translateX(-50%);
+  transition: opacity 0.3s;
+}
+.tp-ring {
+  display: grid;
+  place-items: center;
+  width: var(--node, 46px);
+  height: var(--node, 46px);
+  border-radius: 50%;
+  background: var(--map-card);
+  box-shadow: 0 0 0 2px var(--map-card-edge);
+}
+.tp-node.live .tp-ring {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--mint) 65%, var(--map-card-edge)),
+    0 0 0 6px color-mix(in srgb, var(--mint) 12%, transparent),
+    0 0 20px color-mix(in srgb, var(--mint) 26%, transparent);
+}
+.tp-node.down .tp-ring {
+  box-shadow: none;
+  outline: 2px dashed var(--rose);
+  outline-offset: 2px;
+}
+.tp-node.down .country-flag {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.tp-node.picked .tp-ring {
+  box-shadow:
+    0 0 0 3px var(--text),
+    0 0 0 8px color-mix(in srgb, var(--text) 14%, transparent);
+}
+.tp-ring .node-icon {
+  display: grid;
+  place-items: center;
+  width: var(--node, 46px);
+  height: var(--node, 46px);
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+}
+.tp-ring .node-icon .icon {
+  width: calc(var(--node, 46px) * 0.48);
+  height: calc(var(--node, 46px) * 0.48);
+}
+.tp-ring .country-flag {
+  flex: none;
+  width: calc(var(--node, 46px) * 1.35);
+  height: var(--node, 46px);
+  border-radius: 0;
+  box-shadow: none;
+}
+/* Names are measured at 13px in .tp-text and drawn at the map's size. */
+.tp-name,
+.tp-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.tp-name {
+  font-size: var(--name, 13px);
+  text-align: center;
+  text-shadow:
+    0 0 3px var(--canvas),
+    0 0 3px var(--canvas),
+    0 0 6px var(--canvas);
+}
+.tp-name small {
+  font-size: 11px;
+  font-weight: 500;
+}
+.tp-node.down .tp-name {
+  color: var(--rose);
+}
+.mm-probe {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  display: flex;
+  visibility: hidden;
+}
+/* Where the traffic starts: the carrier's name in a pill at the top, which switches carriers when tapped. */
+.mm-origin {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--map-card);
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--tone) 55%, var(--map-card-edge)),
+    0 10px 28px -12px color-mix(in srgb, var(--tone) 60%, transparent);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s;
+}
+.mm-home {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 18%, var(--map-card));
+  color: var(--tone);
+}
+.mm-home .icon {
+  width: 15px;
+  height: 15px;
+}
+.mm-origin small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.mm-origin small .icon {
+  width: 12px;
+  height: 12px;
+}
+/* Problems: an icon and words in the status colour, on the link. */
+.mm-alert {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+  font: 600 11.5px/1 var(--num);
+  white-space: nowrap;
+}
+.mm-alert .icon {
+  width: 12px;
+  height: 12px;
+}
+/* Delays sit on their links: quiet chips on the overview, edged in the route's colour in an open detail. */
+.mm-ms {
+  position: absolute;
+  height: 20px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 2px var(--route-color);
+  color: var(--text);
+  font: 600 11.5px/20px var(--num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mm-ms em {
+  font-style: normal;
+  color: var(--muted);
+  font-weight: 500;
+}
+.mm-ms:is(.amber, .rose) {
+  color: var(--accent);
+}
+.mm-ms.neutral {
+  color: var(--muted);
+}
+.tp-map .mm-ms.quiet {
+  height: 18px;
+  padding: 0 6px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  color: var(--sub);
+  font: 500 10.5px/18px var(--num);
+}
+.tp-map .mm-ms.quiet em {
+  color: var(--muted);
+}
+/* The flags in the sheet are cropped to circles too. */
+:is(.ps-flag, .ps-chip) .node-icon {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+}
+:is(.ps-flag, .ps-chip) .country-flag {
+  flex: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---------- Pages: the map, and under it the overview. Both move together, like turning a page. ---------- */
+.phone-pages {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.phone-pages[data-page='1'] {
+  transform: translateY(-100%);
+}
+.phone-pages.is-dragging {
+  user-select: none;
+}
+.phone-page {
+  position: absolute;
+  inset: 0;
+}
+/* The map handles one-finger swipes itself and leaves pinching to the browser; zoomed in, one finger pans. */
+#phone-map-page {
+  touch-action: pinch-zoom;
+}
+.is-zoomed #phone-map-page {
+  touch-action: auto;
+}
+.phone-turn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--sub);
+}
+.phone-turn .icon {
+  width: 20px;
+  height: 20px;
+}
+/* Under the map, the way to the overview. */
+#phone-next {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  left: 50%;
+  translate: -50% 0;
+  background: color-mix(in srgb, var(--panel) 76%, transparent);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  backdrop-filter: blur(10px);
+}
+#phone-next .icon {
+  rotate: 180deg;
+}
+.phone-overview {
+  top: 100%;
+  bottom: -100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: calc(48px + env(safe-area-inset-top));
+  border-top: 1px solid var(--stroke);
+  background: var(--panel);
+}
+/* At the overview's top, the way back to the map. */
+#phone-prev {
+  margin: 0 auto -6px;
+}
+.is-dragging {
+  transition: none !important;
+}
+.sheet-grab {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 100%;
+  height: 24px;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-grab::before {
+  content: '';
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+}
+.phone-overview-body {
+  padding: 0 max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+.ps-status {
+  --tone: var(--mint);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+#topology[data-tone='warn'] .ps-status {
+  --tone: var(--amber);
+}
+#topology[data-tone='bad'] .ps-status {
+  --tone: var(--rose);
+}
+.ps-status h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.ps-status h2 em {
+  color: var(--tone);
+  font-style: normal;
+}
+.ps-status time {
+  color: var(--muted);
+  font: 500 12px var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.ps-status p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--sub);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ps-status p b {
+  color: var(--text);
+  font-weight: 600;
+}
+.ps-status .ps-vitals {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.ps-vitals .is-short {
+  color: var(--amber);
+}
+.ps-jump {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sub);
+  font: inherit;
+  text-align: left;
+}
+.ps-status .ps-jump b {
+  color: var(--amber);
+}
+.ps-nowrap {
+  white-space: nowrap;
+}
+.ps-jump .icon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
+}
+.ps-label {
+  margin: 18px 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.ps-route,
+.ps-row {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  column-gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  text-align: left;
+}
+.ps-route {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'flag name value'
+    'flag via trend';
+  row-gap: 3px;
+}
+.ps-flag {
+  grid-area: flag;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-tint);
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 5px var(--route-color, transparent);
+}
+.ps-route.cased .ps-flag {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 3.5px var(--route-color),
+    0 0 0 5px var(--panel),
+    0 0 0 6.5px var(--route-color);
+}
+.ps-flag .node-icon {
+  width: 36px;
+  height: 36px;
+}
+.ps-flag .country-flag {
+  width: 48px;
+  height: 36px;
+}
+.ps-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.ps-fast {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mint) 15%, transparent);
+  color: var(--mint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.ps-value {
+  grid-area: value;
+  justify-self: end;
+  font: 650 18px/1 var(--num);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ps-value b {
+  font-weight: inherit;
+}
+.ps-value small {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.ps-value small:only-child {
+  margin: 0;
+  font: 500 13px var(--font);
+}
+/* The line under the name already says what is wrong. */
+.ps-value em {
+  display: none;
+}
+.ps-via {
+  grid-area: via;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ps-route.amber .ps-via {
+  color: var(--amber);
+}
+.ps-trend {
+  grid-area: trend;
+  justify-self: end;
+  width: 64px;
+  height: 18px;
+  color: var(--route-color, var(--accent));
+}
+.ps-trend .summary-trend {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ps-trend .summary-trend path {
+  vector-effect: non-scaling-stroke;
+}
+.ps-trend .summary-trend .trend-area {
+  stroke: none;
+}
+.ps-trend .summary-trend .trend-ring {
+  stroke: var(--panel);
+  stroke-width: 7px;
+}
+.ps-trend .summary-trend .trend-dot {
+  stroke-width: 4.5px;
+}
+.ps-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+.ps-lead {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  color: var(--sub);
+}
+.ps-lead i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.ps-lead .icon {
+  width: 18px;
+  height: 18px;
+}
+.ps-row strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.ps-row span span {
+  color: var(--accent);
+  font-size: 12px;
+}
+.ps-row.neutral span span {
+  color: var(--muted);
+}
+.ps-row time {
+  color: var(--muted);
+  font: 500 12px var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.ps-row.is-calm .ps-lead {
+  color: var(--mint);
+}
+.ps-row.is-calm span span {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.ps-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+.ps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ps-chip .node-icon {
+  width: 22px;
+  height: 22px;
+}
+.ps-chip .country-flag {
+  width: 30px;
+  height: 22px;
+}
+.ps-chip.down {
+  color: var(--rose);
+}
+.ps-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- Details rise from the bottom over the map instead of covering it ---------- */
+#detail-sheet {
+  position: fixed;
+  z-index: 5;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  height: var(--detail-h, 64dvh);
+  max-height: 92dvh;
+  margin: 0;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--panel);
+  box-shadow:
+    0 -1px 0 var(--stroke),
+    0 -22px 44px -26px var(--shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+  transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#detail-sheet[open] {
+  animation: sheet-rise 0.22s ease-out;
+}
+@keyframes sheet-rise {
+  from {
+    opacity: 0.6;
+    transform: translateY(24px);
+  }
+}
+#detail-sheet .sheet-grab {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  background: var(--header);
+}
+/* The back arrow leads the header, where a phone puts it. */
+#detail-sheet .sheet-head {
+  top: 24px;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 2px 16px 12px 8px;
+}
+#detail-sheet .head-actions {
+  flex: none;
+}
+#sheet-close,
+#phone-menu-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+#detail-sheet #sheet-close {
+  border: 0;
+  background: none;
+}
+#sheet-size {
+  display: none;
+}
+.sheet .neighbor,
+.sheet .endpoint,
+.sheet select,
+.sheet .segment button {
+  min-height: 44px;
+}
+.sheet .sheet-body {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Settings menu ---------- */
+#phone-menu {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90dvh;
+  margin: 0 auto;
+  padding: 12px max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  color: var(--text);
+  border: 1px solid var(--stroke);
+  border-radius: 20px 20px 0 0;
+  background: var(--panel);
+}
+#phone-menu::backdrop {
+  background: var(--backdrop);
+}
+#phone-menu header,
+.phone-appearance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#phone-menu header {
+  margin-bottom: 8px;
+}
+#phone-menu h2 {
+  font-size: 19px;
+}
+#phone-menu-title:focus {
+  outline: none;
+}
+.phone-appearance {
+  padding: 10px 0 15px;
+  font-size: 14px;
+}
+.phone-appearance .theme-switch {
+  display: flex;
+  gap: 3px;
+  padding: 2px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: var(--surface-tint);
+}
+.phone-appearance .theme-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+#phone-menu > a,
+#phone-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 2px 1px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  text-align: left;
+}
+#phone-menu > a .icon,
+#phone-menu > button .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--mint);
+}
+#install-help {
+  padding: 0 0 13px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-train {
+    display: none;
+  }
+  .phone-pages,
+  #detail-sheet {
+    transition: none;
+  }
+}

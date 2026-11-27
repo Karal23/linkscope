@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1015">
+  <title>Linkscope · 离线快照</title>
+  <link rel="icon" href="/mark.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
+  <script src="/pwa.js" defer></script>
+  <style>
+    *{box-sizing:border-box} :root{color-scheme:light;--bg:#f2f5f7;--panel:#fff;--ink:#162c35;--sub:#506773;--line:#c9d6db;--accent:#076a55}
+    :root[data-theme=dark]{color-scheme:dark;--bg:#0b1015;--panel:#10171e;--ink:#e9eff3;--sub:#a8b6c2;--line:#30404c;--accent:#75e4c2}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+    main{max-width:480px;margin:auto;padding:max(28px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
+    header{display:flex;align-items:center;gap:8px;font-size:23px;font-weight:700;letter-spacing:-.055em} h1{margin:44px 0 6px;font-size:29px}
+    p,dt{color:var(--sub)} p{margin:4px 0 18px;font-size:14px} dl{display:grid;grid-template-columns:1fr 1fr;gap:18px;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:19px} dt{font-size:13px} dd{margin:4px 0 0;font:600 20px ui-monospace,monospace}
+    a{display:inline-flex;align-items:center;min-height:44px;margin-top:6px;padding:0 16px;background:var(--accent);color:var(--panel);border-radius:9px;font-weight:600;text-decoration:none}
+  </style>
+</head>
+<body><main id="offline-view">
+  <header><img src="/mark.svg" alt="" width="32" height="32">Linkscope</header>
+  <h1>离线快照</h1>
+  <section id="offline-summary" hidden>
+    <p>上次更新 <time id="snapshot-time"></time></p>
+    <dl>
+      <div><dt>在线探针</dt><dd id="snapshot-online"></dd></div><div><dt>异常链路</dt><dd id="snapshot-faults"></dd></div>
+      <div><dt>总下行速率</dt><dd id="snapshot-download"></dd></div><div><dt>总上行速率</dt><dd id="snapshot-upload"></dd></div>
+    </dl>
+  </section>
+  <p id="offline-empty" hidden>此设备尚无公开快照。</p>
+  <a href="/">重新连接</a>
+</main></body></html>

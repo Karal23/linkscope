@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1015" />
+    <meta name="description" content="Linkscope 网络探针面板。查看节点拓扑、逐段延迟和链路历史。" />
+    <title>Linkscope · 网络拓扑</title>
+    <link rel="icon" type="image/svg+xml" href="mark.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Linkscope" />
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/mobile.css" media="(max-width: 900px)" />
+    <script src="/session.js" defer></script>
+    <script src="/flags.js" defer></script>
+    <script src="data.js" defer></script>
+    <script src="/pwa.js" defer></script>
+    <script src="/glyphs.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="workspace">
+      <section class="topology-panel" id="topology" aria-labelledby="topology-title">
+        <header class="board-head">
+          <div class="brand" aria-label="Linkscope">
+            <img src="mark.svg" width="36" height="36" alt="" /><span>Linkscope</span>
+          </div>
+          <div class="board-identity">
+            <h1 id="topology-title">网络拓扑</h1>
+            <div class="board-meta">
+              <span id="topo-count"></span
+              ><span class="feed-status" id="data-status" role="status">正在连接后端</span>
+            </div>
+          </div>
+          <div class="metric-block">
+            <dl id="metrics" class="telemetry" aria-label="全网实时指标"></dl>
+            <div id="metric-scope" class="metric-scope" hidden></div>
+          </div>
+          <div class="board-actions">
+            <span class="board-clock"><time id="clock">--:--:--</time><small>UTC+8</small></span>
+            <button
+              class="control live-control"
+              id="live-toggle"
+              type="button"
+              aria-pressed="true"
+              title="暂停面板刷新"
+            >
+              <span class="live-dot"></span><span id="live-label">实时刷新</span
+              ><i class="playback-icon" data-icon="pause"></i>
+            </button>
+            <div class="theme-switch" role="group" aria-label="主题">
+              <button type="button" data-set-theme="light" aria-label="日间主题" title="日间主题">
+                <i data-icon="sun"></i>
+              </button>
+              <button type="button" data-set-theme="dark" aria-label="夜间主题" title="夜间主题">
+                <i data-icon="moon"></i>
+              </button>
+            </div>
+            <div class="map-tools">
+              <a class="icon-button admin-link" data-admin-link href="/admin" aria-label="拓扑管理" title="拓扑管理"
+                ><i data-icon="settings"></i
+              ></a>
+              <button
+                class="icon-button"
+                type="button"
+                id="expand-map"
+                aria-label="展开拓扑"
+                title="展开拓扑"
+                aria-pressed="false"
+              >
+                <i data-icon="expand"></i>
+              </button>
+            </div>
+            <button class="control" id="sign-out" type="button" hidden>退出</button>
+            <button id="phone-menu-open" class="phone-only icon-button" type="button" aria-label="面板设置" aria-haspopup="dialog"><i data-icon="settings"></i></button>
+          </div>
+        </header>
+        <div id="topology-canvas" class="topology-canvas">
+          <div id="empty-map" hidden>尚未配置节点<a data-admin hidden href="/admin">添加节点</a></div>
+          <div id="map-stage" class="map-stage">
+            <svg id="map-lines" aria-hidden="true"></svg>
+            <div id="map-labels"></div>
+            <div id="map-nodes"></div>
+          </div>
+          <aside class="board-rail" id="board-rail" aria-label="线路、独立节点与事件">
+            <section class="rail-section rail-routes" aria-labelledby="rail-routes-title">
+              <h2 id="rail-routes-title">线路</h2>
+              <div class="rail-list" id="rail-routes"></div>
+            </section>
+            <section class="rail-section rail-nodes" id="isolated-nodes" aria-labelledby="isolated-title" hidden>
+              <h2 id="isolated-title">独立节点</h2>
+              <div class="rail-list" id="isolated-list"></div>
+            </section>
+            <section class="rail-section rail-events" aria-labelledby="rail-events-title">
+              <h2 id="rail-events-title">近 1 小时事件</h2>
+              <div class="rail-list" id="rail-events"></div>
+            </section>
+          </aside>
+          <div id="mobile-routes" class="mobile-routes">
+            <div id="phone-pages" class="phone-pages">
+              <div id="phone-map-page" class="phone-page">
+                <div id="phone-map" class="phone-map"></div>
+                <button id="phone-next" class="phone-turn" type="button" aria-label="全网状态与线路"><i data-icon="chevron-down"></i></button>
+              </div>
+              <section id="phone-overview" class="phone-page phone-overview" aria-labelledby="phone-status" inert>
+                <button id="phone-prev" class="phone-turn" type="button" aria-label="返回地图"><i data-icon="chevron-down"></i></button>
+                <div id="phone-content" class="phone-overview-body"></div>
+              </section>
+            </div>
+          </div>
+          <dialog class="sheet" id="detail-sheet" aria-labelledby="detail-title"><div id="sheet-inner"></div></dialog>
+        </div>
+      </section>
+    </main>
+    <div class="access-notice" id="access-notice" role="status" aria-live="polite"></div>
+    <dialog id="phone-menu" aria-labelledby="phone-menu-title">
+      <header><h2 id="phone-menu-title" tabindex="-1" autofocus>面板设置</h2><button class="icon-button" id="phone-menu-close" type="button" aria-label="关闭设置"><i data-icon="close"></i></button></header>
+      <div class="phone-appearance"><span>外观</span><div class="theme-switch" role="group" aria-label="主题">
+        <button type="button" data-set-theme="light" aria-label="日间主题"><i data-icon="sun"></i>日间</button>
+        <button type="button" data-set-theme="dark" aria-label="夜间主题"><i data-icon="moon"></i>夜间</button>
+      </div></div>
+      <button type="button" id="phone-install"><i data-icon="install"></i>添加到主屏幕</button>
+      <p id="install-help" role="status" hidden></p>
+      <a data-admin-link href="/admin"><i data-icon="settings"></i>拓扑管理</a>
+      <button id="phone-sign-out" type="button" hidden>退出登录</button>
+    </dialog>
+  </body>
+</html>

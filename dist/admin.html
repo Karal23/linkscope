@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1015" />
+    <title>拓扑管理 · Linkscope</title>
+    <link rel="icon" href="/mark.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/admin.css" />
+    <script src="/session.js" defer></script>
+    <script src="/flags.js" defer></script>
+    <script src="/glyphs.js" defer></script>
+    <script src="/admin.js" defer></script>
+  </head>
+  <body class="admin-page">
+    <main class="workspace admin-workspace">
+      <section class="topology-panel admin-panel" aria-labelledby="admin-title">
+        <header class="board-head">
+          <a class="brand" href="/" title="返回拓扑"
+            ><img src="/mark.svg" width="36" height="36" alt="" /><span>Linkscope</span></a
+          >
+          <div class="board-identity">
+            <h1 id="admin-title">拓扑管理</h1>
+            <div class="board-meta" id="admin-meta"><span>正在读取配置</span></div>
+          </div>
+          <div class="board-actions">
+            <div class="theme-switch" role="group" aria-label="主题">
+              <button type="button" data-set-theme="light" aria-label="日间主题" title="日间主题">
+                <i data-icon="sun"></i>
+              </button>
+              <button type="button" data-set-theme="dark" aria-label="夜间主题" title="夜间主题">
+                <i data-icon="moon"></i>
+              </button>
+            </div>
+            <a class="control back-link" href="/"><i data-icon="back"></i><span>返回拓扑</span></a>
+            <button class="control" id="sign-out" type="button" hidden>退出</button>
+          </div>
+        </header>
+        <div class="admin-shell">
+          <aside class="inventory" aria-label="配置列表">
+            <div class="category-switch" id="categories" role="tablist" aria-label="配置类别"></div>
+            <button class="control add-item" id="add-item" type="button" aria-describedby="add-hint" disabled>
+              <i data-icon="plus"></i><span id="add-label">新建节点</span>
+            </button>
+            <p class="hint" id="add-hint" hidden></p>
+            <div class="inventory-list" id="inventory-list" role="list"></div>
+          </aside>
+          <section class="editor" id="editor" aria-label="编辑"></section>
+        </div>
+      </section>
+    </main>
+    <div class="save-bar" id="save-bar" hidden>
+      <p id="save-note" role="status"></p>
+      <button class="control" id="reload-config" type="button" hidden>载入最新配置</button>
+      <button class="control" id="discard" type="button">放弃</button>
+      <button class="save-button" id="save" type="button">保存</button>
+    </div>
+    <p class="toast" id="toast" role="status" hidden></p>
+    <dialog class="confirm" id="confirm" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <h2 id="confirm-title"></h2>
+        <div id="confirm-body"></div>
+        <div class="confirm-actions">
+          <button class="control" value="cancel" id="confirm-cancel">取消</button>
+          <button class="save-button" value="ok" id="confirm-ok">确定</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

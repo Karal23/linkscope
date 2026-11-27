@@ -1,0 +1,22 @@
+[Unit]
+Description=Linkscope monitoring panel
+After=network.target
+
+[Service]
+User=linkscope
+Group=linkscope
+WorkingDirectory=/opt/linkscope
+StateDirectory=linkscope
+StateDirectoryMode=0700
+EnvironmentFile=/etc/linkscope/panel.env
+ExecStart=/opt/linkscope/.venv/bin/python /opt/linkscope/backend/server.py --state /var/lib/linkscope --port 4188 --public-origin ${LINKSCOPE_ORIGIN}
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

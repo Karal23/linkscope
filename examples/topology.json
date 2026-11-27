@@ -1,0 +1,279 @@
+{
+  "nodes": [
+    {
+      "id": "gz",
+      "name": "广州入口",
+      "place": "广州",
+      "provider": "示例接入",
+      "role": "国内入口",
+      "icon": "router",
+      "tone": "mint",
+      "kind": "ingress",
+      "source": null,
+      "quotaGiB": null,
+      "usedGiB": null,
+      "direction": "both"
+    },
+    {
+      "id": "sh",
+      "name": "上海入口",
+      "place": "上海",
+      "provider": "示例接入",
+      "role": "国内入口",
+      "icon": "router",
+      "tone": "blue",
+      "kind": "ingress",
+      "source": null,
+      "quotaGiB": null,
+      "usedGiB": null,
+      "direction": "both"
+    },
+    {
+      "id": "hk-relay",
+      "name": "香港中转",
+      "place": "香港",
+      "provider": "示例云",
+      "role": "跨境中转",
+      "icon": "relay",
+      "tone": "mint",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 1024,
+      "usedGiB": 256,
+      "direction": "both"
+    },
+    {
+      "id": "lax",
+      "name": "洛杉矶中转",
+      "place": "洛杉矶",
+      "provider": "示例云",
+      "role": "跨境中转",
+      "icon": "relay",
+      "tone": "blue",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 2048,
+      "usedGiB": 512,
+      "direction": "both"
+    },
+    {
+      "id": "hk",
+      "name": "香港出口",
+      "place": "香港",
+      "provider": "示例托管",
+      "role": "落地节点",
+      "icon": "globe",
+      "tone": "mint",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 512,
+      "usedGiB": 128,
+      "direction": "both"
+    },
+    {
+      "id": "jp",
+      "name": "东京出口",
+      "place": "东京",
+      "provider": "示例托管",
+      "role": "落地节点",
+      "icon": "globe",
+      "tone": "violet",
+      "kind": "shared",
+      "source": null,
+      "quotaGiB": null,
+      "usedGiB": null,
+      "direction": "both"
+    },
+    {
+      "id": "sjc",
+      "name": "圣何塞出口",
+      "place": "圣何塞",
+      "provider": "示例托管",
+      "role": "落地节点",
+      "icon": "globe",
+      "tone": "blue",
+      "kind": "ping",
+      "source": null,
+      "quotaGiB": null,
+      "usedGiB": null,
+      "direction": "both"
+    },
+    {
+      "id": "sin",
+      "name": "新加坡节点",
+      "place": "新加坡",
+      "provider": "示例云",
+      "role": "独立节点",
+      "icon": "server",
+      "tone": "mint",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 512,
+      "usedGiB": 64,
+      "direction": "both"
+    },
+    {
+      "id": "fra",
+      "name": "法兰克福节点",
+      "place": "法兰克福",
+      "provider": "示例云",
+      "role": "独立节点",
+      "icon": "server",
+      "tone": "violet",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 1024,
+      "usedGiB": 128,
+      "direction": "both"
+    },
+    {
+      "id": "tpe",
+      "name": "台北备用节点",
+      "place": "台北",
+      "provider": "示例托管",
+      "role": "独立节点",
+      "icon": "server",
+      "tone": "neutral",
+      "kind": "agent",
+      "source": "simulated",
+      "quotaGiB": 256,
+      "usedGiB": 32,
+      "direction": "both"
+    },
+    {
+      "id": "local",
+      "name": "本机探针",
+      "place": "本机",
+      "provider": "Linux",
+      "role": "独立节点",
+      "icon": "server",
+      "tone": "mint",
+      "kind": "agent",
+      "source": "system",
+      "quotaGiB": null,
+      "usedGiB": null,
+      "direction": "both"
+    }
+  ],
+  "links": [
+    {
+      "id": "gz-hk",
+      "from": "gz",
+      "to": "hk-relay",
+      "observer": "hk-relay",
+      "mode": "ICMP",
+      "name": "广港互联",
+      "service": "跨区互联",
+      "tone": "mint"
+    },
+    {
+      "id": "sh-hk",
+      "from": "sh",
+      "to": "hk-relay",
+      "observer": "hk-relay",
+      "mode": "ICMP",
+      "name": "沪港专线",
+      "service": "专线",
+      "tone": "violet"
+    },
+    {
+      "id": "sh-la",
+      "from": "sh",
+      "to": "lax",
+      "observer": null,
+      "mode": null,
+      "name": "美西直连",
+      "service": "公网",
+      "tone": "blue"
+    },
+    {
+      "id": "hk-hk",
+      "from": "hk-relay",
+      "to": "hk",
+      "observer": "hk-relay",
+      "mode": "ICMP",
+      "name": "香港本地互联",
+      "service": "区域互联",
+      "tone": "mint"
+    },
+    {
+      "id": "hk-jp",
+      "from": "hk-relay",
+      "to": "jp",
+      "observer": "hk-relay",
+      "mode": "TCP",
+      "name": "香港至东京",
+      "service": "跨区隧道",
+      "tone": "violet"
+    },
+    {
+      "id": "la-sjc",
+      "from": "lax",
+      "to": "sjc",
+      "observer": "lax",
+      "mode": "ICMP",
+      "name": "加州互联",
+      "service": "区域互联",
+      "tone": "blue"
+    }
+  ],
+  "routes": [
+    {
+      "id": "hk-main",
+      "name": "香港主线",
+      "entry": "gz",
+      "tail": [
+        "gz-hk",
+        "hk-hk"
+      ],
+      "tone": "mint",
+      "test": true,
+      "testSource": "simulated"
+    },
+    {
+      "id": "hk-backup",
+      "name": "香港备用",
+      "entry": "gz",
+      "tail": [
+        "gz-hk",
+        "hk-hk"
+      ],
+      "tone": "mint",
+      "test": false,
+      "testSource": "simulated"
+    },
+    {
+      "id": "jp-main",
+      "name": "日本线路",
+      "entry": "sh",
+      "tail": [
+        "sh-hk",
+        "hk-jp"
+      ],
+      "tone": "violet",
+      "test": true,
+      "testSource": "simulated"
+    },
+    {
+      "id": "us-main",
+      "name": "美西中转",
+      "entry": "sh",
+      "tail": [
+        "sh-la",
+        "la-sjc"
+      ],
+      "tone": "blue",
+      "test": true,
+      "testSource": "simulated"
+    },
+    {
+      "id": "us-direct",
+      "name": "美西直连",
+      "entry": "sjc",
+      "tail": [],
+      "tone": "blue",
+      "test": true,
+      "testSource": "simulated"
+    }
+  ]
+}

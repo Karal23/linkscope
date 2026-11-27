@@ -1,0 +1,19 @@
+[Unit]
+Description=Linkscope probe %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+DynamicUser=yes
+EnvironmentFile=/etc/linkscope/probe.env
+LoadCredential=token:/etc/linkscope/tokens/%i
+ExecStart=/usr/bin/python3 /opt/linkscope/probes/agent.py --id %i --url ${LINKSCOPE_URL} --token-file %d/token
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

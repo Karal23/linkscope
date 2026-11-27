@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b1015" />
+    <title>登录 · Linkscope</title>
+    <link rel="icon" href="/mark.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/admin.css" />
+    <script src="/login.js" defer></script>
+  </head>
+  <body class="login-page">
+    <main class="login-panel">
+      <div class="brand"><img src="/mark.svg" width="34" height="34" alt="" />Linkscope</div>
+      <h1>登录网络面板</h1>
+      <form id="login-form" method="post" action="/api/v1/login">
+        <label class="field"
+          ><span>账号</span
+          ><input name="role" required autocomplete="username" autocapitalize="none" spellcheck="false"
+        /></label>
+        <label class="field"
+          ><span>密码</span
+          ><input name="password" type="password" maxlength="128" required autocomplete="current-password"
+        /></label>
+        <button class="save-button" type="submit">登录</button>
+        <p class="feedback error" id="login-error" role="status" hidden></p>
+      </form>
+    </main>
+  </body>
+</html>
