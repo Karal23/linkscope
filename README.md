@@ -4,6 +4,28 @@
 
 公网拓扑、指标和历史可匿名查看，管理操作使用管理员会话，探针通过 HTTPS 和独立凭据上报。安装步骤见[公网部署与真实探针接入](deploy/README.md)。
 
+## 界面预览
+
+桌面拓扑、手机拓扑和线路详情均使用演示数据。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-topology-dark.webp">
+  <img src="docs/screenshots/desktop-topology-light.webp" alt="桌面拓扑，显示入口到出口的分段延迟，右侧列出线路和独立节点">
+</picture>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-topology-dark.webp">
+    <img src="docs/screenshots/mobile-topology-light.webp" width="285" alt="手机拓扑，沿所选运营商入口查看各节点和分段延迟">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-route-dark.webp">
+    <img src="docs/screenshots/mobile-route-light.webp" width="285" alt="手机线路详情，展示日本线路的分段延迟合计、近 24 小时状态和延迟分位数">
+  </picture>
+</p>
+
+## 桌面拓扑
+
 桌面点线路可高亮路径，再点同一条线路或画布空白处返回总览。点节点或连线可打开详情。TCP 的「延迟」指建立连接的耗时，「超时率」按最近 1 分钟计算。
 
 拓扑按链路方向从左到右分列，同一列的顺序会尽量减少连线交叉。双向或成环的链路也从左往右画，回程那条的流动点反向移动，悬停读数可看实际方向。同一对节点之间的多条链路分开弯曲，各自显示读数。读数会避开卡片和其他读数。列数放不下时拓扑可以横向滚动。
