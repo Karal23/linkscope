@@ -1,6 +1,6 @@
-/* Phone: two pages. The first is the network as a full-screen map; a swipe up turns to the second, with the
-   state, the routes, the last hour and the nodes. Details rise from the bottom over the map. The document itself
-   does not scroll. */
+/* Phone: four pages in a loop. The first is the network as a full-screen map; each swipe up turns to the next of the
+   routes, the nodes and the last hour, and then back to the map. Details rise from the bottom over the map. The
+   document itself does not scroll. */
 html,
 body {
   height: 100%;
@@ -25,8 +25,8 @@ body {
   overflow: visible;
 }
 
-/* Top bar: floats over both pages; taps between its controls reach the page under it. Its backdrop fades
-   from the map's colour to the overview's as the page turns. */
+/* Top bar: floats over every page; taps between its controls reach the page under it. Its backdrop fades
+   from the map's colour to the lists' as the page turns. */
 .board-head {
   position: fixed;
   z-index: 4;
@@ -53,10 +53,10 @@ body {
   background: linear-gradient(var(--panel) 40%, transparent);
   opacity: 0;
 }
-#topology[data-page='overview'] .board-head::before {
+#topology[data-page]:not([data-page='map']) .board-head::before {
   opacity: 0;
 }
-#topology[data-page='overview'] .board-head::after {
+#topology[data-page]:not([data-page='map']) .board-head::after {
   opacity: 1;
 }
 .board-head > * {
@@ -507,28 +507,27 @@ button.phone-only {
 .tp-map .mm-ms.quiet em {
   color: var(--muted);
 }
-/* The flags in the sheet are cropped to circles too. */
-:is(.ps-flag, .ps-chip) .node-icon {
+/* The flags in the lists are cropped to circles too. */
+.ps-flag .node-icon {
   display: grid;
   place-items: center;
   overflow: hidden;
   border: 0;
   border-radius: 50%;
 }
-:is(.ps-flag, .ps-chip) .country-flag {
+.ps-flag .country-flag {
   flex: none;
   border-radius: 0;
   box-shadow: none;
 }
 
-/* ---------- Pages: the map, and under it the overview. Both move together, like turning a page. ---------- */
+/* ---------- Pages: the map, the routes, the nodes and the last hour, in a loop ---------- */
+/* Each page rests a screen below or above the one shown and is hidden there. A turn slides the next page up from
+   below, or the one before down from above, together with the page it replaces, like a strip. */
 .phone-pages {
   position: absolute;
   inset: 0;
-  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.phone-pages[data-page='1'] {
-  transform: translateY(-100%);
+  overflow: hidden;
 }
 .phone-pages.is-dragging {
   user-select: none;
@@ -536,9 +535,24 @@ button.phone-only {
 .phone-page {
   position: absolute;
   inset: 0;
+  visibility: hidden;
+  transform: translateY(100%);
+  transition:
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s 0.45s;
 }
-/* The map handles one-finger swipes itself and leaves pinching to the browser; zoomed in, one finger pans. */
+.phone-page.is-shown {
+  visibility: visible;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.phone-page.is-placing,
+.is-dragging > .phone-page {
+  transition: none;
+}
+/* The board opens on the map, before any turn has placed the pages. The map handles one-finger swipes itself and
+   leaves pinching to the browser; zoomed in, one finger pans. */
 #phone-map-page {
+  transform: none;
   touch-action: pinch-zoom;
 }
 .is-zoomed #phone-map-page {
@@ -559,7 +573,7 @@ button.phone-only {
   width: 20px;
   height: 20px;
 }
-/* Under the map, the way to the overview. */
+/* Under the map, the way to the routes. */
 #phone-next {
   position: absolute;
   z-index: 1;
@@ -573,18 +587,41 @@ button.phone-only {
 #phone-next .icon {
   rotate: 180deg;
 }
-.phone-overview {
-  top: 100%;
-  bottom: -100%;
+/* A list scrolls between its two turns: back at its top, on at its bottom, which names the page it leads to. */
+.phone-list {
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-top: calc(48px + env(safe-area-inset-top));
   border-top: 1px solid var(--stroke);
   background: var(--panel);
 }
-/* At the overview's top, the way back to the map. */
-#phone-prev {
+.phone-back {
+  flex: none;
   margin: 0 auto -6px;
+}
+.phone-onward {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  align-self: center;
+  gap: 5px;
+  height: 36px;
+  margin: auto 0 calc(env(safe-area-inset-bottom) + 16px);
+  padding: 0 15px 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  color: var(--sub);
+  font-size: 13px;
+  font-weight: 600;
+}
+.phone-onward .icon {
+  width: 16px;
+  height: 16px;
+  rotate: 180deg;
 }
 .is-dragging {
   transition: none !important;
@@ -605,9 +642,10 @@ button.phone-only {
   border-radius: 3px;
   background: color-mix(in srgb, var(--text) 20%, transparent);
 }
-.phone-overview-body {
-  padding: 0 max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+.phone-list-body {
+  padding: 0 max(20px, env(safe-area-inset-right)) 24px max(20px, env(safe-area-inset-left));
 }
+/* Each list opens with what it adds up to, as its title. */
 .ps-status {
   --tone: var(--mint);
   display: grid;
@@ -617,10 +655,10 @@ button.phone-only {
   padding: 2px 0 14px;
   border-bottom: 1px solid var(--line);
 }
-#topology[data-tone='warn'] .ps-status {
+.ps-status[data-tone='warn'] {
   --tone: var(--amber);
 }
-#topology[data-tone='bad'] .ps-status {
+.ps-status[data-tone='bad'] {
   --tone: var(--rose);
 }
 .ps-status h2 {
@@ -653,8 +691,8 @@ button.phone-only {
   color: var(--muted);
   font-size: 12.5px;
 }
-.ps-vitals .is-short {
-  color: var(--amber);
+.ps-status .ps-vitals:empty {
+  display: none;
 }
 .ps-jump {
   display: inline;
@@ -677,14 +715,8 @@ button.phone-only {
   height: 12px;
   vertical-align: -1px;
 }
-.ps-label {
-  margin: 18px 0 2px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
 .ps-route,
+.ps-node,
 .ps-row {
   display: grid;
   width: 100%;
@@ -858,43 +890,50 @@ button.phone-only {
   font: 500 12px var(--num);
   font-variant-numeric: tabular-nums;
 }
-.ps-row.is-calm .ps-lead {
-  color: var(--mint);
+/* Nodes wear the map's rings: a soft glow for a live probe, a red dashed ring and a grey flag for one that is down,
+   a plain edge without a probe. On the right, the upload or what is measured towards the node, over its quota. */
+.ps-node {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'flag name value'
+    'flag via quota';
+  row-gap: 3px;
 }
-.ps-row.is-calm span span {
-  color: var(--muted);
-  font-size: 13.5px;
+.ps-node .ps-flag {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 3.5px var(--map-card-edge);
 }
-.ps-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 0 4px;
+.ps-node.live .ps-flag {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 4px color-mix(in srgb, var(--mint) 65%, var(--map-card-edge)),
+    0 0 14px 2px color-mix(in srgb, var(--mint) 22%, transparent);
 }
-.ps-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 12px 0 6px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--surface-tint);
-  box-shadow: inset 0 0 0 1px var(--stroke);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
+.ps-node.down .ps-flag {
+  box-shadow: none;
+  outline: 1.5px dashed var(--rose);
+  outline-offset: 2.5px;
 }
-.ps-chip .node-icon {
-  width: 22px;
-  height: 22px;
+.ps-node.down :is(.country-flag, .node-icon .icon) {
+  filter: grayscale(1);
+  opacity: 0.55;
 }
-.ps-chip .country-flag {
-  width: 30px;
-  height: 22px;
-}
-.ps-chip.down {
+.ps-node.down :is(.ps-name, .ps-via, .ps-value) {
   color: var(--rose);
+}
+.ps-node .ps-value {
+  font-size: 16px;
+}
+.ps-node .ps-value .ps-mode {
+  margin: 0 3px 0 0;
+}
+.ps-quota {
+  grid-area: quota;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  min-height: 16px;
 }
 .ps-empty {
   margin: 0;
@@ -1055,7 +1094,8 @@ button.phone-only {
   .mm-train {
     display: none;
   }
-  .phone-pages,
+  .phone-page,
+  .phone-page.is-shown,
   #detail-sheet {
     transition: none;
   }

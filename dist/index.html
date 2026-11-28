@@ -102,13 +102,24 @@
           </aside>
           <div id="mobile-routes" class="mobile-routes">
             <div id="phone-pages" class="phone-pages">
-              <div id="phone-map-page" class="phone-page">
+              <div id="phone-map-page" class="phone-page is-shown">
                 <div id="phone-map" class="phone-map"></div>
-                <button id="phone-next" class="phone-turn" type="button" aria-label="全网状态与线路"><i data-icon="chevron-down"></i></button>
+                <button id="phone-next" class="phone-turn" type="button" data-turn="1" aria-label="翻到线路"><i data-icon="chevron-down"></i></button>
               </div>
-              <section id="phone-overview" class="phone-page phone-overview" aria-labelledby="phone-status" inert>
-                <button id="phone-prev" class="phone-turn" type="button" aria-label="返回地图"><i data-icon="chevron-down"></i></button>
-                <div id="phone-content" class="phone-overview-body"></div>
+              <section id="phone-routes-page" class="phone-page phone-list" aria-labelledby="phone-status" inert>
+                <button class="phone-turn phone-back" type="button" data-turn="-1" aria-label="返回拓扑"><i data-icon="chevron-down"></i></button>
+                <div class="phone-list-body" data-ps-page="routes"></div>
+                <button class="phone-onward" type="button" data-turn="1"><i data-icon="chevron-down"></i>节点</button>
+              </section>
+              <section id="phone-nodes-page" class="phone-page phone-list" aria-labelledby="phone-nodes-title" inert>
+                <button class="phone-turn phone-back" type="button" data-turn="-1" aria-label="返回线路"><i data-icon="chevron-down"></i></button>
+                <div class="phone-list-body" data-ps-page="nodes"></div>
+                <button class="phone-onward" type="button" data-turn="1"><i data-icon="chevron-down"></i>事件</button>
+              </section>
+              <section id="phone-events-page" class="phone-page phone-list" aria-labelledby="phone-events-title" inert>
+                <button class="phone-turn phone-back" type="button" data-turn="-1" aria-label="返回节点"><i data-icon="chevron-down"></i></button>
+                <div class="phone-list-body" data-ps-page="events"></div>
+                <button class="phone-onward" type="button" data-turn="1"><i data-icon="chevron-down"></i>拓扑</button>
               </section>
             </div>
           </div>

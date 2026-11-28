@@ -519,7 +519,7 @@
       el.classList.toggle('is-selected', pick('link', id));
     });
   }
-  // ---------- Phone: the network as a full-screen map, a sheet with the state and routes, details on demand ----------
+  // ---------- Phone: the network as a full-screen map, a page each for the routes, the nodes and the last hour ----------
   // The map shows one carrier at a time; picking one applies it to every entry that measures it.
   function phoneCarriers() {
     const entries = D.nodes.filter((n) => n.references?.length);
@@ -569,9 +569,11 @@
         fastest,
       };
     }
+    // Probes are counted on their own page, so with one down the routes alone are said to be fine.
+    const all = f.summaries.all || {};
     return {
       tone: 'good',
-      title: '一切正常',
+      title: all.online < all.total ? '线路正常' : '一切正常',
       first: fastest ? `最快的是<b>${fastest.name}</b>，<b>${fmt(routeFigures(fastest).delay)} ms</b>。` : '线路还没有测量结果。',
       when: time,
       fastest,
@@ -598,9 +600,7 @@
       <span class="ps-via">${issue ? `${issue.where} · ${issue.what}` : via}</span>
       <span class="ps-trend" data-route-spark="${route.id}">${phoneSpark(route)}</span></button>`;
   }
-  function phoneEvents() {
-    const groups = eventGroups();
-    if (!groups.length) return `<div class="ps-row is-calm"><span class="ps-lead">${icon('check')}</span><span><span>近 1 小时一切平稳</span></span></div>`;
+  function phoneEvents(groups) {
     return groups
       .map((g) => {
         const target = g.type === 'link' ? D.linkById[g.id] : D.nodeById[g.id];
@@ -610,36 +610,79 @@
       })
       .join('');
   }
-  function phoneChips() {
+  // Nodes in the map's order, top to bottom and left to right, then the ones on no route.
+  function phoneNodes() {
+    const shown = connectedIds(D.links.filter((l) => !D.nodeById[l.from]?.sourceIp && !D.nodeById[l.to]?.sourceIp));
+    const rank = (n) => (shown.has(n.id) || n.routed ? 0 : 1);
     return D.nodes
       .filter((n) => !n.sourceIp && n.kind !== 'reference')
-      .map((n) => {
-        const status = D.nodeState(n, state.now);
-        const tone = ['online', 'connected'].includes(status) ? 'mint' : status === 'offline' ? 'down' : '';
-        return `<button type="button" class="ps-chip ${tone}" ${nodeButton(n)}>${tileIcon(n)}${n.name}</button>`;
-      })
-      .join('');
+      .map((n, i) => [n, i])
+      .sort(([a, i], [b, j]) => rank(a) - rank(b) || (a.col ?? 0) - (b.col ?? 0) || (a.row ?? 0) - (b.row ?? 0) || i - j)
+      .map(([n]) => n);
   }
-  function phoneVitals() {
+  // A row per node, ringed as on the map. A host shows its load, its upload and its quota; a node without a probe
+  // shows what is measured towards it.
+  function phoneNodeRow(n) {
+    const status = D.nodeState(n, state.now);
+    const live = ['online', 'connected'].includes(status);
+    const down = ['offline', 'waiting'].includes(status);
+    const r = n.reading || {};
+    let value,
+      via = nodeCaption(n);
+    if (n.host && live) {
+      const [v, unit] = compactSpeed(r.up);
+      value = `<small class="ps-mode">↑</small><b>${v}</b><small>${unit}</small>`;
+      const load = [r.cpu != null && `CPU ${fmt(r.cpu, 0)}%`, r.ram != null && `内存 ${fmt(r.ram, 0)}%`].filter(Boolean);
+      if (load.length) via = load.join(' · ');
+    } else if (n.host || down) {
+      value = `<small>${stateText[status]}</small>`;
+      if (n.last) via = `最后上报 ${D.time(n.last)}`;
+    } else if (n.kind === 'ingress') {
+      value = `<small>${stateText.ingress}</small>`;
+    } else {
+      const mode = n.kind === 'ping' ? 'ICMP' : 'TCP';
+      const observed = inputLinks(n).filter((l) => l.mode === mode && l.observer !== n.id && !l.sourceIp);
+      const one = observed.length === 1 ? observed[0] : null;
+      value =
+        observed.length > 1
+          ? `<b>${observed.length}</b><small>个上游</small>`
+          : !one
+            ? `<small>${stateText.unmeasured}</small>`
+            : delayStatus(one)
+              ? `<small>${delayStatus(one)}</small>`
+              : `<small class="ps-mode">${mode}</small><b>${fmt(one.reading.latency)}</b><small>ms</small>`;
+    }
+    const quota = n.unlimited || n.quotaGiB != null ? quotaReading(n) : '';
+    return [
+      `ps-node ${live ? 'live' : down ? 'down' : 'quiet'}`,
+      `<span class="ps-flag">${tileIcon(n)}</span><span class="ps-name">${n.name}</span><span class="ps-value">${value}</span>
+      <span class="ps-via">${via}</span><span class="ps-quota">${quota}</span>`,
+    ];
+  }
+  function nodesStatus(count) {
     const all = D.frame.summaries.all || {};
     const [down, downUnit] = compactSpeed(all.download),
       [up, upUnit] = compactSpeed(all.upload);
-    const short = all.total && all.online < all.total;
-    return `<span${short ? ' class="is-short"' : ''}>${all.online ?? '—'}/${all.total ?? '—'} 探针在线</span> · 下行 ${down} ${downUnit} · 上行 ${up} ${upUnit}`;
+    const off = (all.total || 0) - (all.online || 0);
+    return {
+      tone: off > 0 ? 'bad' : 'good',
+      title: !all.total ? `${count} 个节点` : off > 0 ? `${off} 个探针<em>离线</em>` : '探针全部在线',
+      vitals: all.total ? `下行 ${down} ${downUnit} · 上行 ${up} ${upUnit}` : '',
+    };
   }
   function drawPhoneApp() {
-    const content = $('#phone-content');
-    content.innerHTML = `<header class="ps-status"><h2 id="phone-status" data-ps="title"></h2><time data-ps="when"></time>
-        <p data-ps="first"></p><p class="ps-vitals" data-ps="vitals"></p></header>
-      <p class="ps-label">线路</p><div class="ps-routes" data-ps="routes"></div>
-      <p class="ps-label">最近 1 小时</p><div data-ps="events"></div>
-      <p class="ps-label">节点</p><div class="ps-chips" data-ps="chips"></div>`;
+    $('[data-ps-page="routes"]').innerHTML = `<header class="ps-status" data-ps="routes-head"><h2 id="phone-status" data-ps="title"></h2>
+        <time data-ps="when"></time><p data-ps="first"></p></header><div data-ps="routes"></div>`;
+    $('[data-ps-page="nodes"]').innerHTML = `<header class="ps-status" data-ps="nodes-head"><h2 id="phone-nodes-title" data-ps="nodes-title"></h2>
+        <p class="ps-vitals" data-ps="vitals"></p></header><div data-ps="nodes"></div>`;
+    $('[data-ps-page="events"]').innerHTML = `<header class="ps-status"><h2 id="phone-events-title" data-ps="events-title"></h2>
+        <time>近 1 小时</time></header><div data-ps="events"></div>`;
     updatePhoneOverview();
     drawPhoneMap();
   }
   // Each refresh rewrites only the parts whose text changed, so a focused row keeps its focus.
   function updatePhoneOverview() {
-    const content = $('#phone-content');
+    const content = $('#phone-pages');
     if (!phone.matches || !$('[data-ps="routes"]', content)) return;
     const swap = (el, html) => {
       if (el && el.dataset.html !== html) {
@@ -649,10 +692,30 @@
     };
     const s = phoneStatus();
     $('#topology').dataset.tone = s.tone;
+    $('[data-ps="routes-head"]', content).dataset.tone = s.tone;
     swap($('[data-ps="title"]', content), s.title);
     swap($('[data-ps="when"]', content), s.when);
     swap($('[data-ps="first"]', content), s.first);
-    swap($('[data-ps="vitals"]', content), phoneVitals());
+    const nodes = phoneNodes();
+    const n = nodesStatus(nodes.length);
+    $('[data-ps="nodes-head"]', content).dataset.tone = n.tone;
+    swap($('[data-ps="nodes-title"]', content), n.title);
+    swap($('[data-ps="vitals"]', content), n.vitals);
+    const box = $('[data-ps="nodes"]', content);
+    const nodeIds = nodes.map((x) => x.id).join('|');
+    if (box.dataset.ids !== nodeIds) {
+      box.dataset.ids = nodeIds;
+      box.innerHTML = nodes.map((x) => `<button type="button" ${nodeButton(x)}></button>`).join('');
+    }
+    nodes.forEach((x, k) => {
+      const [className, html] = phoneNodeRow(x);
+      box.children[k].className = className;
+      swap(box.children[k], html);
+    });
+    const groups = eventGroups();
+    const changes = groups.reduce((sum, g) => sum + g.count, 0);
+    swap($('[data-ps="events-title"]', content), changes ? `${changes} 次状态变化` : '一切平稳');
+    swap($('[data-ps="events"]', content), phoneEvents(groups));
     const list = $('[data-ps="routes"]', content);
     const ids = D.routes.map((r) => r.id).join('|');
     if (list.dataset.ids !== ids) {
@@ -672,8 +735,6 @@
           if (focused) next.focus({ preventScroll: true });
         } else swap($('[data-route-spark]', row), phoneSpark(route));
       });
-    swap($('[data-ps="events"]', content), phoneEvents());
-    swap($('[data-ps="chips"]', content), phoneChips());
   }
   // ---------- Phone map: a network topology ----------
   // Nodes are round flags with their names under them, in the desktop map's layers from top to bottom, and each link
@@ -1131,41 +1192,69 @@
     panel.addEventListener('pointerup', settle);
     panel.addEventListener('pointercancel', settle);
   }
-  // ---------- Phone pages: the map, and under it the overview ----------
-  // A swipe up on the map, the wheel or the button under the map turns to the overview. A swipe down from the
-  // overview's top, the button there or the back gesture returns to the map. Details are read against the map, so
-  // one opened from the overview turns back to the map, and closing it returns to the overview.
+  // ---------- Phone pages: the map, then the routes, the nodes and the last hour, in a loop ----------
+  // A swipe up turns to the next page and a swipe down to the one before, round the loop: up from the last hour comes
+  // back to the map. A list turns only at its ends, down at its top and up at its bottom, and scrolls in between. The
+  // buttons at the ends of each page and the wheel turn it too, and the back gesture returns to the map. Details are
+  // read against the map, so one opened from a list turns back to the map, and closing it returns to the list.
+  const pageNames = ['map', 'routes', 'nodes', 'events'];
   const pager = $('#phone-pages'),
-    overview = $('#phone-overview');
+    pages = pageNames.map((name) => $(`#phone-${name}-page`));
+  const around = (i) => (i + pages.length) % pages.length;
+  const atTop = (el) => el.scrollTop <= 0;
+  const atEnd = (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
   let page = 0,
     detailFrom = 0;
-  function showPage(next) {
-    const leaving = next ? $('#phone-map-page') : overview;
+  // A page coming in starts a screen below the one shown, or above it when going back, with its near end in view.
+  function bring(i, from, keep = false) {
+    const el = pages[i];
+    if (getComputedStyle(el).visibility === 'hidden') {
+      el.classList.add('is-placing');
+      el.style.transform = `translateY(${from * 100}%)`;
+      if (!keep) el.scrollTop = from < 0 ? el.scrollHeight : 0;
+      void el.offsetHeight;
+      el.classList.remove('is-placing');
+    }
+    el.classList.add('is-shown');
+  }
+  // `from` is 1 when the page comes up from below, -1 when it comes down from above and 0 to switch at once.
+  function showPage(next, from = 0, keep = false) {
+    const prev = page;
+    const leaving = pages[prev];
     const focused = leaving.contains(document.activeElement);
     page = next;
     pager.classList.remove('is-dragging');
-    pager.style.transform = '';
-    pager.dataset.page = next;
-    $('#topology').dataset.page = next ? 'overview' : 'map';
-    $('#phone-map-page').inert = !!next;
-    overview.inert = !next;
-    if (focused) $(next ? '#phone-prev' : '#phone-next').focus({ preventScroll: true });
-  }
-  // Turning by hand gives the overview one history entry, so the back gesture returns to the map.
-  function turnPage(next) {
-    if (next !== page) {
-      if (next) history.pushState({ linkscopePage: true }, '');
-      else if (history.state?.linkscopePage) history.back();
+    if (next !== prev) {
+      bring(next, from, keep);
+      leaving.classList.toggle('is-placing', !from);
+      leaving.style.transform = `translateY(${-from * 100}%)`;
+      leaving.classList.remove('is-shown');
+      void leaving.offsetHeight;
+      leaving.classList.remove('is-placing');
     }
-    showPage(next);
+    pages[next].style.transform = 'translateY(0)';
+    pages.forEach((el, i) => (el.inert = i !== next));
+    $('#topology').dataset.page = pageNames[next];
+    if (focused && next !== prev) $('[data-turn]', pages[next]).focus({ preventScroll: true });
   }
-  // The pages follow a one-finger swipe or a mouse drag and settle on release, on the other page when the swipe
-  // went far or fast enough. On the overview only a swipe down that starts at its top turns the page.
+  // The map keeps the history entry it opened with. Leaving it adds one entry for the lists, turning between lists
+  // replaces that entry, so the back gesture always returns to the map.
+  function turnPage(next, from) {
+    if (next !== page) {
+      if (!next) {
+        if (history.state?.linkscopePage) history.back();
+      } else history[page ? 'replaceState' : 'pushState']({ linkscopePage: next }, '');
+    }
+    showPage(next, from);
+  }
+  // The pages follow a one-finger swipe or a mouse drag and settle on release, on the next page when the swipe went
+  // far or fast enough. A swipe locks to the way it started, so turning back past its start only returns the page.
   let swipe = null,
     swipedAt = -Infinity;
   const zoomed = () => (window.visualViewport?.scale || 1) > 1.01;
   function swipeStart(x, y) {
-    swipe = phone.matches && !sheet.open && !zoomed() ? { x, y, from: page, top: page === 0 || overview.scrollTop <= 0, mine: null, moves: [] } : null;
+    const el = pages[page];
+    swipe = phone.matches && !sheet.open && !zoomed() ? { x, y, from: page, top: atTop(el), end: atEnd(el), mine: null, moves: [] } : null;
   }
   function swipeMove(x, y) {
     if (!swipe) return false;
@@ -1173,18 +1262,29 @@
       const dx = x - swipe.x,
         dy = y - swipe.y;
       if (Math.hypot(dx, dy) < 8) return false;
-      swipe.mine = Math.abs(dy) > Math.abs(dx) && (swipe.from === 0 || (swipe.top && dy > 0));
+      swipe.way = dy < 0 ? 1 : -1;
+      swipe.mine = Math.abs(dy) > Math.abs(dx) && (swipe.way > 0 ? swipe.end : swipe.top);
       if (!swipe.mine) return false;
       swipe.y = y;
+      swipe.next = around(swipe.from + swipe.way);
+      bring(swipe.next, swipe.way);
       pager.classList.add('is-dragging');
       getSelection()?.removeAllRanges();
     }
     if (!swipe.mine) return false;
     const h = pager.clientHeight;
-    pager.style.transform = `translateY(${Math.min(0, Math.max(-h, y - swipe.y - swipe.from * h))}px)`;
+    const dy = swipe.way > 0 ? Math.max(-h, Math.min(0, y - swipe.y)) : Math.min(h, Math.max(0, y - swipe.y));
+    pages[swipe.from].style.transform = `translateY(${dy}px)`;
+    pages[swipe.next].style.transform = `translateY(calc(${swipe.way * 100}% + ${dy}px))`;
     swipe.moves.push([performance.now(), y]);
     if (swipe.moves.length > 6) swipe.moves.shift();
     return true;
+  }
+  function putBack(s) {
+    pager.classList.remove('is-dragging');
+    pages[s.from].style.transform = 'translateY(0)';
+    pages[s.next].style.transform = `translateY(${s.way * 100}%)`;
+    pages[s.next].classList.remove('is-shown');
   }
   function swipeEnd() {
     const s = swipe;
@@ -1193,15 +1293,13 @@
     swipedAt = performance.now();
     const [t0, y0] = s.moves[0],
       [t1, y1] = s.moves.at(-1);
-    // The map turns on a swipe up and the overview on a swipe down; a swipe that turned back stays.
-    const way = s.from === 0 ? -1 : 1;
-    const moved = (y1 - s.y) * way,
-      speed = ((y1 - y0) / Math.max(1, t1 - t0)) * way;
-    const turn = (moved > pager.clientHeight * 0.2 && speed > -0.2) || (speed > 0.35 && moved > 16);
-    turnPage(turn ? 1 - s.from : s.from);
+    const moved = (s.y - y1) * s.way,
+      speed = ((y0 - y1) / Math.max(1, t1 - t0)) * s.way;
+    if ((moved > pager.clientHeight * 0.2 && speed > -0.2) || (speed > 0.35 && moved > 16)) turnPage(s.next, s.way);
+    else putBack(s);
   }
   function swipeCancel() {
-    if (swipe?.mine) showPage(page);
+    if (swipe?.mine) putBack(swipe);
     swipe = null;
   }
   function routeFigures(route) {
@@ -1323,7 +1421,7 @@
   }
   function drawMobileRoutes() {
     if (!phone.matches) {
-      $('#phone-content').replaceChildren();
+      $$('[data-ps-page]').forEach((el) => el.replaceChildren());
       $('#phone-map').replaceChildren();
       return;
     }
@@ -1406,7 +1504,7 @@
         history.pushState({ linkscopeDetail: true }, '');
         sheet.style.setProperty('--detail-h', phoneSnaps()[1] + 'px');
         detailFrom = page;
-        if (page) showPage(0);
+        if (page) showPage(0, -1);
       } else if (!back && state.detail && (state.detail.type !== type || state.detail.id !== id)) phoneTrail.push(state.detail);
     }
     state.detail = { type, id };
@@ -2221,7 +2319,7 @@
         drawRail();
         updateReadings($('#map-stage'));
         updateReadings($('#isolated-list'));
-        updateReadings($('#phone-content'));
+        $$('.phone-list').forEach((el) => updateReadings(el));
         updateReadings($('#phone-map'));
       }
       $('#empty-map').hidden = !!frame.nodes.length;
@@ -2321,7 +2419,7 @@
     clearInspect();
     syncDock();
     drawPhoneMap();
-    if (detailFrom && phone.matches) showPage(1);
+    if (detailFrom && phone.matches) showPage(detailFrom, 1, true);
     detailFrom = 0;
     if (opener?.isConnected) opener.focus?.({ preventScroll: true });
     opener = null;
@@ -2446,33 +2544,55 @@
       if (providers.length > 1) setPhoneCarrier(providers[(providers.indexOf(chosen) + 1) % providers.length]);
     } else if (!e.target.closest('[data-open]') && sheet.open) closePhoneDetail();
   });
-  // A detail opened on the phone adds one history entry, so the back gesture closes it; on the overview the back
-  // gesture returns to the map.
+  // A detail opened on the phone adds one history entry, so the back gesture closes it; on a list the back gesture
+  // returns to the map.
   window.addEventListener('popstate', () => {
     if (!phone.matches) return;
     if (sheet.open) {
       phoneTrail = [];
       sheet.close();
-    } else showPage(history.state?.linkscopePage ? 1 : 0);
+    } else {
+      const next = Number(history.state?.linkscopePage) || 0;
+      showPage(next, next ? 1 : -1);
+    }
   });
   dragSheet(sheet, '--detail-h');
-  $('#phone-next').addEventListener('click', () => !sheet.open && turnPage(1));
-  $('#phone-prev').addEventListener('click', () => turnPage(0));
-  pager.addEventListener('touchstart', (e) => (e.touches.length === 1 ? swipeStart(e.touches[0].clientX, e.touches[0].clientY) : swipeCancel()), { passive: true });
+  pager.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-turn]');
+    if (!button || sheet.open) return;
+    const way = Number(button.dataset.turn);
+    turnPage(around(page + way), way);
+  });
+  // A touch keeps reporting to the element it started on, even after a refresh redraws that element out of the page,
+  // so the rest of each touch is followed there.
   pager.addEventListener(
-    'touchmove',
+    'touchstart',
     (e) => {
-      if (!swipe) return;
       if (e.touches.length !== 1) return swipeCancel();
-      const { clientX: x, clientY: y } = e.touches[0];
-      // At the overview's top a pull down is held back from the browser until it is recognised as a swipe.
-      const pulling = swipe.mine == null && swipe.from === 1 && swipe.top && y > swipe.y;
-      if ((swipeMove(x, y) || pulling) && e.cancelable) e.preventDefault();
+      if (swipe?.mine) putBack(swipe);
+      swipeStart(e.touches[0].clientX, e.touches[0].clientY);
+      const target = e.target;
+      const move = (ev) => {
+        if (!swipe) return;
+        if (ev.touches.length !== 1) return swipeCancel();
+        const { clientX: x, clientY: y } = ev.touches[0];
+        // At a list's ends a pull outwards is held back from the browser until it is recognised as a swipe.
+        const pulling = swipe.mine == null && swipe.from !== 0 && ((swipe.top && y > swipe.y) || (swipe.end && y < swipe.y));
+        if ((swipeMove(x, y) || pulling) && ev.cancelable) ev.preventDefault();
+      };
+      const end = (ev) => {
+        target.removeEventListener('touchmove', move);
+        target.removeEventListener('touchend', end);
+        target.removeEventListener('touchcancel', end);
+        if (ev.type === 'touchend' && !ev.touches.length) swipeEnd();
+        else swipeCancel();
+      };
+      target.addEventListener('touchmove', move, { passive: false });
+      target.addEventListener('touchend', end);
+      target.addEventListener('touchcancel', end);
     },
-    { passive: false },
+    { passive: true },
   );
-  pager.addEventListener('touchend', (e) => !e.touches.length && swipeEnd());
-  pager.addEventListener('touchcancel', swipeCancel);
   pager.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     swipeStart(e.clientX, e.clientY);
@@ -2493,24 +2613,25 @@
     },
     true,
   );
-  // The wheel turns the page too: down on the map, up at the overview's top. One wheel gesture turns one page.
+  // The wheel turns the page too, at a page's ends as a swipe does: a wheel gesture that starts there turns one page.
   let wheelAt = -Infinity,
     wheelHeld = -Infinity,
-    wheelFromTop = false;
+    wheelFrom = { top: false, end: false };
   pager.addEventListener(
     'wheel',
     (e) => {
       if (!phone.matches || sheet.open || e.ctrlKey || !e.deltaY) return;
       const now = performance.now();
-      if (now - wheelAt > 250) wheelFromTop = overview.scrollTop <= 0;
+      if (now - wheelAt > 250) wheelFrom = { top: atTop(pages[page]), end: atEnd(pages[page]) };
       wheelAt = now;
       if (now < wheelHeld) {
         wheelHeld = Math.max(wheelHeld, now + 150);
         e.preventDefault();
-      } else if (page === 0 ? e.deltaY > 0 : wheelFromTop && e.deltaY < 0) {
+      } else if (e.deltaY > 0 ? wheelFrom.end : wheelFrom.top) {
         wheelHeld = now + 500;
         e.preventDefault();
-        turnPage(1 - page);
+        const way = Math.sign(e.deltaY);
+        turnPage(around(page + way), way);
       }
     },
     { passive: false },
@@ -2534,7 +2655,7 @@
   $('#expand-map').addEventListener('click', () => fullscreen(!state.expanded));
   $('#live-toggle').addEventListener('click', toggleLive);
   fillIcons();
-  showPage(phone.matches && history.state?.linkscopePage ? 1 : 0);
+  showPage(phone.matches ? Number(history.state?.linkscopePage) || 0 : 0);
   drawTopology();
   $('#clock').textContent = D.time(state.now, true);
   drawMetrics();
